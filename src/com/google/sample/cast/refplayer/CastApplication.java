@@ -51,6 +51,7 @@ public class CastApplication extends Application {
                     VideoCastManager.FEATURE_NOTIFICATION |
                             VideoCastManager.FEATURE_LOCKSCREEN |
                             VideoCastManager.FEATURE_WIFI_RECONNECT |
+                            VideoCastManager.FEATURE_CAPTIONS_PREFERENCE |
                             VideoCastManager.FEATURE_DEBUGGING);
 
         }

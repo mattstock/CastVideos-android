@@ -32,7 +32,11 @@ See LICENSE
 Google Cast Developers Community on Google+ [http://goo.gl/TPLDxj](http://goo.gl/TPLDxj)
 
 ## Change List
-1.1 -> 1.2
+1.3
+ * Added support for Closed Captions based on enhancements made in CCL. Three new videos have been
+   added to the beginning of the list of videos; these three include captions. 
+
+1.2
  * Updated the build.gradle to work with the latest version of the Android Studio Beta (0.8.1). You may need to upgrade your
  Android Studio to be abe to work with this project.
  * Added a first-time introductory UI for the Cast Button. This is accomplished by using a [fork] (https://github.com/naddaf/ShowcaseView) of
@@ -44,6 +48,6 @@ Google Cast Developers Community on Google+ [http://goo.gl/TPLDxj](http://goo.gl
  your build may fail. To get around that, you would need to change the MIN_SDK in the forked project to 10. The included AAR library includes this change and should run on
  devices with API levels >= 10 but this feature will be hidden for level 10 and only shows up in API levels >= 11.
 
-1.0 -> 1.1
+1.1
  * Updated the Cast button images to match the new style
  * Addressed a couple of potential leaks

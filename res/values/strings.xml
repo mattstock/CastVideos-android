@@ -22,7 +22,7 @@
     <string name="loading">Loading&#8230;</string>
     <string name="no_video_found">No video was found</string>
     <string name="about_app">About DemoCast Player</string>
-    <string name="version">Version: %1$s</string>
+    <string name="version">CastVideos: %1$s, CCL: %2$s</string>
     <string name="session_reconnection_attempt">Attempting to recover previous session&#8230;</string>
 
     <!-- Error messages -->
@@ -63,4 +63,8 @@
 
     <!-- ShowCaseView -->
     <string name="touch_to_cast">Touch to cast videos to your TV</string>
+
+    <!-- Captions -->
+    <string name="captions_settings">Captions Settings</string>
+    <string name="captions">Captions</string>
 </resources>

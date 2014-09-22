@@ -16,16 +16,13 @@
 
 package com.google.sample.cast.refplayer.browser;
 
-import android.net.Uri;
-import android.util.Log;
-
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaMetadata;
+import com.google.android.gms.cast.MediaTrack;
 import com.google.android.gms.common.images.WebImage;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import android.net.Uri;
+import android.util.Log;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -35,6 +32,10 @@ import java.io.InputStreamReader;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class VideoProvider {
 
@@ -47,6 +48,13 @@ public class VideoProvider {
     private static String TAG_STUDIO = "studio";
     private static String TAG_SOURCES = "sources";
     private static String TAG_SUBTITLE = "subtitle";
+    private static String TAG_TRACKS = "tracks";
+    private static String TAG_TRACK_ID = "id";
+    private static String TAG_TRACK_TYPE = "type";
+    private static String TAG_TRACK_SUBTYPE = "subtype";
+    private static String TAG_TRACK_CONTENT_ID = "contentId";
+    private static String TAG_TRACK_NAME = "name";
+    private static String TAG_TRACK_LANGUAGE = "language";
     private static String TAG_THUMB = "image-480x270"; // "thumb";
     private static String TAG_IMG_780_1200 = "image-780x1200";
     private static String TAG_TITLE = "title";
@@ -108,8 +116,26 @@ public class VideoProvider {
                         String bigImageurl = getThumbPrefix() + video.getString(TAG_IMG_780_1200);
                         String title = video.getString(TAG_TITLE);
                         String studio = video.getString(TAG_STUDIO);
+                        List<MediaTrack> tracks = null;
+                        if (video.has(TAG_TRACKS)) {
+                            JSONArray tracksArray = video.getJSONArray(TAG_TRACKS);
+                            if (tracksArray != null) {
+                                tracks = new ArrayList<MediaTrack>();
+                                for (int k = 0; k < tracksArray.length(); k++) {
+                                    JSONObject track = tracksArray.getJSONObject(k);
+                                    tracks.add(buildTrack(track.getLong(TAG_TRACK_ID),
+                                            track.getString(TAG_TRACK_TYPE),
+                                            track.getString(TAG_TRACK_SUBTYPE),
+                                            track.getString(TAG_TRACK_CONTENT_ID),
+                                            track.getString(TAG_TRACK_NAME),
+                                            track.getString(TAG_TRACK_LANGUAGE)
+                                    ));
+                                }
+                            }
+                        }
+
                         mediaList.add(buildMediaInfo(title, studio, subTitle, videoUrl, imageurl,
-                                bigImageurl));
+                                bigImageurl, tracks));
                     }
                 }
             }
@@ -117,8 +143,8 @@ public class VideoProvider {
         return mediaList;
     }
 
-    private static MediaInfo buildMediaInfo(String title,
-            String subTitle, String studio, String url, String imgUrl, String bigImageUrl) {
+    private static MediaInfo buildMediaInfo(String title, String subTitle, String studio,
+            String url, String imgUrl, String bigImageUrl, List<MediaTrack> tracks) {
         MediaMetadata movieMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE);
 
         movieMetadata.putString(MediaMetadata.KEY_SUBTITLE, subTitle);
@@ -131,7 +157,35 @@ public class VideoProvider {
                 .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
                 .setContentType(getMediaType())
                 .setMetadata(movieMetadata)
+                .setMediaTracks(tracks)
                 .build();
+    }
+
+    private static MediaTrack buildTrack(long id, String type, String subType, String contentId,
+            String name, String language) {
+        int trackType = MediaTrack.TYPE_UNKNOWN;
+        if ("text".equals(type)) {
+            trackType = MediaTrack.TYPE_TEXT;
+        } else if ("video".equals(type)) {
+            trackType = MediaTrack.TYPE_VIDEO;
+        } else if ("audio".equals(type)) {
+            trackType = MediaTrack.TYPE_AUDIO;
+        }
+
+        int trackSubType = MediaTrack.SUBTYPE_NONE;
+        if (subType != null) {
+            if ("captions".equals(type)) {
+                trackSubType = MediaTrack.SUBTYPE_CAPTIONS;
+            } else if ("subtitle".equals(type)) {
+                trackSubType = MediaTrack.SUBTYPE_SUBTITLES;
+            }
+        }
+
+        return new MediaTrack.Builder(id, trackType)
+                .setName(name)
+                .setSubtype(trackSubType)
+                .setContentId(contentId)
+                .setLanguage(language).build();
     }
 
     private static String getMediaType() {

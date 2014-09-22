@@ -34,6 +34,7 @@ import java.util.List;
 public class VideoBrowserListFragment extends ListFragment implements
         LoaderManager.LoaderCallbacks<List<MediaInfo>> {
 
+    private static final String TAG = "VideoBrowserListFragment";
     private static final String CATALOG_URL =
             "http://lime.csgeeks.org/" +
                     "videos.json";
@@ -114,5 +115,4 @@ public class VideoBrowserListFragment extends ListFragment implements
         f.setArguments(b);
         return f;
     }
-
 }
