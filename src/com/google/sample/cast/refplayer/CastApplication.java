@@ -38,7 +38,7 @@ public class CastApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        APPLICATION_ID = getString(R.string.app_id);
+        APPLICATION_ID = getString(R.string.app_id_fightnetwork);
         Utils.saveFloatToPreference(getApplicationContext(),
                 VideoCastManager.PREFS_KEY_VOLUME_INCREMENT, (float) VOLUME_INCREMENT);
 

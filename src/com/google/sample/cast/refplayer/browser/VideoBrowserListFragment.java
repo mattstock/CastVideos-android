@@ -16,10 +16,10 @@
 
 package com.google.sample.cast.refplayer.browser;
 
-import com.google.android.gms.cast.MediaInfo;
 import com.google.sample.cast.refplayer.R;
-import com.google.sample.cast.refplayer.mediaplayer.LocalPlayerActivity;
+import com.google.android.gms.cast.MediaInfo;
 import com.google.sample.castcompanionlibrary.utils.Utils;
+import com.google.sample.cast.refplayer.mediaplayer.LocalPlayerActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -35,8 +35,8 @@ public class VideoBrowserListFragment extends ListFragment implements
         LoaderManager.LoaderCallbacks<List<MediaInfo>> {
 
     private static final String CATALOG_URL =
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/" +
-                    "videos-enhanced-c.json";
+            "http://lime.csgeeks.org/" +
+                    "videos.json";
     private VideoListAdapter mAdapter;
 
     /*
