@@ -20,7 +20,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:1.3.0'
+        classpath 'com.android.tools.build:gradle:2.1.0'
     }
 }
 
@@ -34,7 +34,7 @@ repositories {
 apply plugin: 'com.android.application'
 android {
     compileSdkVersion 23
-    buildToolsVersion "23.0.2"
+    buildToolsVersion "23.0.3"
 
     sourceSets {
         main {
@@ -47,6 +47,7 @@ android {
     defaultConfig {
         minSdkVersion 10
         targetSdkVersion 23
+        applicationId="com.google.sample.cast.refplayer"
         def manifestParser = new DefaultManifestParser()
         versionName = manifestParser.getVersionName(android.sourceSets.main.manifest.srcFile)
         versionCode = manifestParser.getVersionCode(android.sourceSets.main.manifest.srcFile)
@@ -81,8 +82,8 @@ android {
 
  dependencies {
      compile files('libs/android-query.0.25.10.jar')
-     compile 'com.google.android.libraries.cast.companionlibrary:ccl:2.8.3'
-     compile 'com.android.support:recyclerview-v7:23.2.1'
+     compile 'com.google.android.libraries.cast.companionlibrary:ccl:2.8.4'
+     compile 'com.android.support:recyclerview-v7:23.4.0'
  }
  */
 dependencies {
@@ -91,5 +92,5 @@ dependencies {
     // depend on both debug and release versions of the library
     releaseCompile project(path: ':CastCompanionLibrary', configuration: 'release')
     debugCompile project(path: ':CastCompanionLibrary', configuration: 'debug')
-    compile 'com.android.support:recyclerview-v7:23.2.1'
+    compile 'com.android.support:recyclerview-v7:23.4.0'
 }
