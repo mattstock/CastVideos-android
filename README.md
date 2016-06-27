@@ -1,5 +1,7 @@
 # CastVideos-android (reference Android sender app)
 
+*Version warning*: this sample is not recommended for new development because it's only for Cast SDK v2. Use the [Cast SDK v3 sample instead.](https://github.com/googlecast/CastVideos-android)
+
 CastVideos-android application shows how to cast videos from an android device in a way that is fully compliant with the Design Checklist.
 
 **This is a reference sender app to be used as the starting point for your Android sender app**
