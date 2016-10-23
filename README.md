@@ -1,8 +1,9 @@
-# CastVideos-android (reference Android sender app)
+# CastVideos-android-v2 (reference Android sender app)
 
-**Version warning**: this sample is not recommended for new development because it's only for Cast SDK v2. Use the [Cast SDK v3 sample instead.](https://github.com/googlecast/CastVideos-android)
+**Version warning**: this sample is not recommended for new development because it's only for Cast SDK v2.
+Use the [Cast SDK v3 sample instead.](https://github.com/googlecast/CastVideos-android)
 
-CastVideos-android application shows how to cast videos from an android device in a way that is fully compliant with the Design Checklist.
+CastVideos-android-v2 application shows how to cast videos from an android device (using the CCL library) in a way that is fully compliant with the Design Checklist.
 
 **This is a reference sender app to be used as the starting point for your Android sender app**
 
@@ -27,7 +28,7 @@ to have your own ID.
    setup in the build.gradle file and the settings.gradle. it assumes you have cloned the CastCompanionLibrary-android project
    into a parallel project named "CastCompanionLibrary". If you want to change the name, make sure it gets updated in both
    settings.gradle and build.gradle. Quick steps to clone and compile the app from command line (on a Linux or Mac) are:
-     * $ git clone https://github.com/googlecast/CastVideos-android.git CastVideos
+     * $ git clone https://github.com/googlecast/CastVideos-android-v2.git CastVideos
      * $ git clone https://github.com/googlecast/CastCompanionLibrary-android.git CastCompanionLibrary
      * $ cd CastVideos
      * $ ./gradlew build
@@ -55,6 +56,10 @@ Your use of this sample is subject to, and by using or downloading the sample fi
 Google Cast Developers Community on Google+ [http://goo.gl/TPLDxj](http://goo.gl/TPLDxj)
 
 ## Change List
+
+2.9.0
+ * Updated to use CCL v2.9.0
+ * Updated build and dependencies.
 
 2.8.0
  * Updated to use CCL v2.8.0.
