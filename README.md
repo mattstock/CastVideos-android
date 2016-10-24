@@ -57,6 +57,9 @@ Google Cast Developers Community on Google+ [http://goo.gl/TPLDxj](http://goo.gl
 
 ## Change List
 
+2.9.1
+ * Updated to use CCL v2.9.1
+
 2.9.0
  * Updated to use CCL v2.9.0
  * Updated build and dependencies.
