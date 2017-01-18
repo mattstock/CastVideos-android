@@ -16,35 +16,36 @@
 
 package com.google.sample.cast.refplayer;
 
+import com.google.android.gms.cast.ApplicationMetadata;
+import com.google.android.libraries.cast.companionlibrary.cast.VideoCastManager;
+import com.google.android.libraries.cast.companionlibrary.cast.callbacks.VideoCastConsumer;
+import com.google.android.libraries.cast.companionlibrary.cast.callbacks.VideoCastConsumerImpl;
+import com.google.android.libraries.cast.companionlibrary.widgets.IntroductoryOverlay;
+import com.google.sample.cast.refplayer.queue.ui.QueueListViewActivity;
 import com.google.sample.cast.refplayer.settings.CastPreference;
-import com.google.sample.castcompanionlibrary.cast.VideoCastManager;
-import com.google.sample.castcompanionlibrary.cast.callbacks.IVideoCastConsumer;
-import com.google.sample.castcompanionlibrary.cast.callbacks.VideoCastConsumerImpl;
-import com.google.sample.castcompanionlibrary.widgets.MiniController;
 
-import com.github.amlcurran.showcaseview.ShowcaseView;
-import com.github.amlcurran.showcaseview.targets.ActionViewTarget;
-
+import android.annotation.TargetApi;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarActivity;
-import android.support.v7.media.MediaRouter.RouteInfo;
+import android.support.annotation.NonNull;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 
-public class VideoBrowserActivity extends ActionBarActivity {
+public class VideoBrowserActivity extends AppCompatActivity {
 
     private static final String TAG = "VideoBrowserActivity";
     private VideoCastManager mCastManager;
-    private IVideoCastConsumer mCastConsumer;
-    private MiniController mMini;
-    private MenuItem mediaRouteMenuItem;
-    boolean mIsHoneyCombOrAbove = Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB;
+    private VideoCastConsumer mCastConsumer;
+    private MenuItem mMediaRouteMenuItem;
+    private boolean mIsHoneyCombOrAbove = Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB;
+    private Toolbar mToolbar;
+    private IntroductoryOverlay mOverlay;
 
     /*
      * (non-Javadoc)
@@ -55,19 +56,28 @@ public class VideoBrowserActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         VideoCastManager.checkGooglePlayServices(this);
         setContentView(R.layout.video_browser);
-        ActionBar actionBar = getSupportActionBar();
 
-        mCastManager = CastApplication.getCastManager(this);
-
-        // -- Adding MiniController
-        mMini = (MiniController) findViewById(R.id.miniController1);
-        mCastManager.addMiniController(mMini);
-
+        mCastManager = VideoCastManager.getInstance();
         mCastConsumer = new VideoCastConsumerImpl() {
 
             @Override
             public void onFailed(int resourceId, int statusCode) {
+                String reason = "Not Available";
+                if (resourceId > 0) {
+                    reason = getString(resourceId);
+                }
+                Log.e(TAG, "Action failed, reason:  " + reason + ", status code: " + statusCode);
+            }
 
+            @Override
+            public void onApplicationConnected(ApplicationMetadata appMetadata, String sessionId,
+                    boolean wasLaunched) {
+                invalidateOptionsMenu();
+            }
+
+            @Override
+            public void onDisconnected() {
+                invalidateOptionsMenu();
             }
 
             @Override
@@ -84,76 +94,92 @@ public class VideoBrowserActivity extends ActionBarActivity {
             }
 
             @Override
-            public void onCastDeviceDetected(final RouteInfo info) {
-                if (!CastPreference.isFtuShown(VideoBrowserActivity.this) && mIsHoneyCombOrAbove) {
-                    CastPreference.setFtuShown(VideoBrowserActivity.this);
-
-                    Log.d(TAG, "Route is visible: " + info);
-                    new Handler().postDelayed(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            if (mediaRouteMenuItem.isVisible()) {
-                                Log.d(TAG, "Cast Icon is visible: " + info.getName());
-                                showFtu();
-                            }
-                        }
-                    }, 1000);
+            public void onCastAvailabilityChanged(boolean castPresent) {
+                if (castPresent && mIsHoneyCombOrAbove) {
+                    showOverlay();
                 }
             }
         };
 
-        setupActionBar(actionBar);
-        mCastManager.reconnectSessionIfPossible(this, false);
+        setupActionBar();
     }
 
-    private void setupActionBar(ActionBar actionBar) {
-        actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_STANDARD);
-        getSupportActionBar().setIcon(R.drawable.actionbar_logo_castvideos);
-        getSupportActionBar().setDisplayShowTitleEnabled(false);
+    private void setupActionBar() {
+        mToolbar = (Toolbar) findViewById(R.id.toolbar);
+        mToolbar.setTitle(R.string.app_name);
+        setSupportActionBar(mToolbar);
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
-        getMenuInflater().inflate(R.menu.main, menu);
+        getMenuInflater().inflate(R.menu.browse, menu);
 
-        mediaRouteMenuItem = mCastManager.
+        mMediaRouteMenuItem = mCastManager.
                 addMediaRouterButton(menu, R.id.media_route_menu_item);
 
         return true;
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        menu.findItem(R.id.action_show_queue).setVisible(mCastManager.isConnected());
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        Intent i;
         switch (item.getItemId()) {
             case R.id.action_settings:
-                Intent i = new Intent(VideoBrowserActivity.this, CastPreference.class);
+                i = new Intent(VideoBrowserActivity.this, CastPreference.class);
+                startActivity(i);
+                break;
+            case R.id.action_show_queue:
+                i = new Intent(VideoBrowserActivity.this, QueueListViewActivity.class);
                 startActivity(i);
                 break;
         }
         return true;
     }
 
-    private void showFtu() {
-        new ShowcaseView.Builder(this)
-                .setTarget(new ActionViewTarget(this, ActionViewTarget.Type.MEDIA_ROUTE_BUTTON))
-                .setContentTitle(R.string.touch_to_cast)
-                .build();
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
+    private void showOverlay() {
+        if(mOverlay != null) {
+            mOverlay.remove();
+        }
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (mMediaRouteMenuItem.isVisible()) {
+                    mOverlay = new IntroductoryOverlay.Builder(VideoBrowserActivity.this)
+                            .setMenuItem(mMediaRouteMenuItem)
+                            .setTitleText(R.string.intro_overlay_text)
+                            .setSingleTime()
+                            .setOnDismissed(new IntroductoryOverlay.OnOverlayDismissedListener() {
+                                @Override
+                                public void onOverlayDismissed() {
+                                    Log.d(TAG, "overlay is dismissed");
+                                    mOverlay = null;
+                                }
+                            })
+                            .build();
+                    mOverlay.show();
+                }
+            }
+        }, 1000);
     }
 
     @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        if (mCastManager.onDispatchVolumeKeyEvent(event, CastApplication.VOLUME_INCREMENT)) {
-            return true;
-        }
-        return super.dispatchKeyEvent(event);
+    public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
+        return mCastManager.onDispatchVolumeKeyEvent(event, CastApplication.VOLUME_INCREMENT)
+                || super.dispatchKeyEvent(event);
     }
 
     @Override
     protected void onResume() {
         Log.d(TAG, "onResume() was called");
-        mCastManager = CastApplication.getCastManager(this);
+        mCastManager = VideoCastManager.getInstance();
         if (null != mCastManager) {
             mCastManager.addVideoCastConsumer(mCastConsumer);
             mCastManager.incrementUiCounter();
@@ -172,11 +198,6 @@ public class VideoBrowserActivity extends ActionBarActivity {
     @Override
     protected void onDestroy() {
         Log.d(TAG, "onDestroy is called");
-        if (null != mCastManager) {
-            mMini.removeOnMiniControllerChangedListener(mCastManager);
-            mCastManager.removeMiniController(mMini);
-            mCastManager.clearContext(this);
-        }
         super.onDestroy();
     }
 

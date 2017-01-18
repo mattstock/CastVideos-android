@@ -19,15 +19,14 @@ package com.google.sample.cast.refplayer.mediaplayer;
 import com.google.android.gms.cast.ApplicationMetadata;
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaMetadata;
+import com.google.android.libraries.cast.companionlibrary.cast.VideoCastManager;
+import com.google.android.libraries.cast.companionlibrary.cast.callbacks.VideoCastConsumerImpl;
 import com.google.sample.cast.refplayer.CastApplication;
 import com.google.sample.cast.refplayer.R;
+import com.google.sample.cast.refplayer.browser.VideoProvider;
+import com.google.sample.cast.refplayer.queue.ui.QueueListViewActivity;
 import com.google.sample.cast.refplayer.settings.CastPreference;
 import com.google.sample.cast.refplayer.utils.Utils;
-import com.google.sample.castcompanionlibrary.cast.VideoCastManager;
-import com.google.sample.castcompanionlibrary.cast.callbacks.VideoCastConsumerImpl;
-import com.google.sample.castcompanionlibrary.widgets.MiniController;
-
-import com.androidquery.AQuery;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -41,7 +40,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v7.app.ActionBarActivity;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.view.ViewCompat;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -52,6 +55,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.view.WindowManager;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
@@ -60,10 +64,12 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.VideoView;
 
+import com.androidquery.AQuery;
+
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class LocalPlayerActivity extends ActionBarActivity {
+public class LocalPlayerActivity extends AppCompatActivity {
 
     private static final String TAG = "LocalPlayerActivity";
     private VideoView mVideoView;
@@ -74,40 +80,38 @@ public class LocalPlayerActivity extends ActionBarActivity {
     private SeekBar mSeekbar;
     private ImageView mPlayPause;
     private ProgressBar mLoading;
-    private View mControlers;
+    private View mControllers;
     private View mContainer;
     private ImageView mCoverArt;
     private VideoCastManager mCastManager;
     private Timer mSeekbarTimer;
-    private Timer mControlersTimer;
+    private Timer mControllersTimer;
     private PlaybackLocation mLocation;
     private PlaybackState mPlaybackState;
     private final Handler mHandler = new Handler();
-    private Point mDisplaySize;
     private final float mAspectRatio = 72f / 128;
     private AQuery mAquery;
     private MediaInfo mSelectedMedia;
-    private boolean mShouldStartPlayback;
-    private boolean mControlersVisible;
+    private boolean mControllersVisible;
     private int mDuration;
-    private MiniController mMini;
     protected MediaInfo mRemoteMediaInformation;
     private VideoCastConsumerImpl mCastConsumer;
     private TextView mAuthorView;
+    private ImageButton mPlayCircle;
 
     /*
      * indicates whether we are doing a local or a remote playback
      */
-    public static enum PlaybackLocation {
+    public enum PlaybackLocation {
         LOCAL,
-        REMOTE;
+        REMOTE
     }
 
     /*
      * List of various states that we can be in
      */
-    public static enum PlaybackState {
-        PLAYING, PAUSED, BUFFERING, IDLE;
+    public enum PlaybackState {
+        PLAYING, PAUSED, BUFFERING, IDLE
     }
 
     @Override
@@ -116,21 +120,20 @@ public class LocalPlayerActivity extends ActionBarActivity {
         setContentView(R.layout.player_activity);
         mAquery = new AQuery(this);
         loadViews();
-        mCastManager = CastApplication.getCastManager(this);
-        setupActionBar();
+        mCastManager = VideoCastManager.getInstance();
         setupControlsCallbacks();
-        setupMiniController();
         setupCastListener();
         // see what we need to play and were
         Bundle b = getIntent().getExtras();
         if (null != b) {
-            mSelectedMedia = com.google.sample.castcompanionlibrary.utils.Utils
-                    .toMediaInfo(getIntent().getBundleExtra("media"));
-            mShouldStartPlayback = b.getBoolean("shouldStart");
+            mSelectedMedia = com.google.android.libraries.cast.companionlibrary.utils.Utils
+                    .bundleToMediaInfo(getIntent().getBundleExtra("media"));
+            setupActionBar();
+            boolean shouldStartPlayback = b.getBoolean("shouldStart");
             int startPosition = b.getInt("startPosition", 0);
             mVideoView.setVideoURI(Uri.parse(mSelectedMedia.getContentId()));
             Log.d(TAG, "Setting url of the VideoView to: " + mSelectedMedia.getContentId());
-            if (mShouldStartPlayback) {
+            if (shouldStartPlayback) {
                 // this will be the case only if we are coming from the
                 // CastControllerActivity by disconnecting from a device
                 mPlaybackState = PlaybackState.PLAYING;
@@ -149,7 +152,7 @@ public class LocalPlayerActivity extends ActionBarActivity {
                 } else {
                     updatePlaybackLocation(PlaybackLocation.LOCAL);
                 }
-                mPlaybackState = PlaybackState.PAUSED;
+                mPlaybackState = PlaybackState.IDLE;
                 updatePlayButton(mPlaybackState);
             }
         }
@@ -174,10 +177,14 @@ public class LocalPlayerActivity extends ActionBarActivity {
                         } catch (Exception e) {
                             Utils.handleException(LocalPlayerActivity.this, e);
                         }
+                        return;
                     } else {
+                        mPlaybackState = PlaybackState.IDLE;
                         updatePlaybackLocation(PlaybackLocation.REMOTE);
                     }
                 }
+                updatePlayButton(mPlaybackState);
+                invalidateOptionsMenu();
             }
 
             @Override
@@ -189,8 +196,10 @@ public class LocalPlayerActivity extends ActionBarActivity {
             @Override
             public void onDisconnected() {
                 Log.d(TAG, "onDisconnected() is reached");
-                mPlaybackState = PlaybackState.PAUSED;
+                mPlaybackState = PlaybackState.IDLE;
                 mLocation = PlaybackLocation.LOCAL;
+                updatePlayButton(mPlaybackState);
+                invalidateOptionsMenu();
             }
 
             @Override
@@ -222,13 +231,8 @@ public class LocalPlayerActivity extends ActionBarActivity {
         };
     }
 
-    private void setupMiniController() {
-        mMini = (MiniController) findViewById(R.id.miniController1);
-        mCastManager.addMiniController(mMini);
-    }
-
     private void updatePlaybackLocation(PlaybackLocation location) {
-        this.mLocation = location;
+        mLocation = location;
         if (location == PlaybackLocation.LOCAL) {
             if (mPlaybackState == PlaybackState.PLAYING ||
                     mPlaybackState == PlaybackState.BUFFERING) {
@@ -236,16 +240,15 @@ public class LocalPlayerActivity extends ActionBarActivity {
                 startControllersTimer();
             } else {
                 stopControllersTimer();
-                setCoverArtStatus(com.google.sample.castcompanionlibrary.utils.Utils.
+                setCoverArtStatus(com.google.android.libraries.cast.companionlibrary.utils.Utils.
                         getImageUrl(mSelectedMedia, 0));
             }
 
-            getSupportActionBar().setTitle("");
         } else {
             stopControllersTimer();
-            setCoverArtStatus(com.google.sample.castcompanionlibrary.utils.Utils.
+            setCoverArtStatus(com.google.android.libraries.cast.companionlibrary.utils.Utils.
                     getImageUrl(mSelectedMedia, 0));
-            updateControlersVisibility(true);
+            updateControllersVisibility(false);
         }
     }
 
@@ -278,7 +281,7 @@ public class LocalPlayerActivity extends ActionBarActivity {
                 switch (mLocation) {
                     case LOCAL:
                         mVideoView.start();
-                        if (!mCastManager.isConnecting() ) {
+                        if (!mCastManager.isConnecting()) {
                             Log.d(TAG, "Playing locally...");
                             mCastManager.clearPersistedConnectionInfo(
                                     VideoCastManager.CLEAR_SESSION);
@@ -291,7 +294,6 @@ public class LocalPlayerActivity extends ActionBarActivity {
                     case REMOTE:
                         try {
                             mCastManager.checkConnectivity();
-                            Log.d(TAG, "Playing remotely...");
                             loadRemoteMedia(0, true);
                             finish();
                         } catch (Exception e) {
@@ -310,13 +312,25 @@ public class LocalPlayerActivity extends ActionBarActivity {
                 break;
 
             case IDLE:
-                mVideoView.setVideoURI(Uri.parse(mSelectedMedia.getContentId()));
-                mVideoView.seekTo(0);
-                mVideoView.start();
-                mPlaybackState = PlaybackState.PLAYING;
-                restartTrickplayTimer();
-                break;
-
+                switch (mLocation) {
+                    case LOCAL:
+                        mVideoView.setVideoURI(Uri.parse(mSelectedMedia.getContentId()));
+                        mVideoView.seekTo(0);
+                        mVideoView.start();
+                        mPlaybackState = PlaybackState.PLAYING;
+                        restartTrickplayTimer();
+                        updatePlaybackLocation(PlaybackLocation.LOCAL);
+                        break;
+                    case REMOTE:
+                        try {
+                            mCastManager.checkConnectivity();
+                            Utils.showQueuePopup(this, mPlayCircle, mSelectedMedia);
+                        } catch (Exception e) {
+                            Utils.handleException(LocalPlayerActivity.this, e);
+                            return;
+                        }
+                        break;
+                }
             default:
                 break;
         }
@@ -324,7 +338,7 @@ public class LocalPlayerActivity extends ActionBarActivity {
     }
 
     private void loadRemoteMedia(int position, boolean autoPlay) {
-        mCastManager.startCastControllerActivity(this, mSelectedMedia, position, autoPlay);
+        mCastManager.startVideoCastControllerActivity(this, mSelectedMedia, position, autoPlay);
     }
 
     private void setCoverArtStatus(String url) {
@@ -353,30 +367,32 @@ public class LocalPlayerActivity extends ActionBarActivity {
     }
 
     private void stopControllersTimer() {
-        if (null != mControlersTimer) {
-            mControlersTimer.cancel();
+        if (null != mControllersTimer) {
+            mControllersTimer.cancel();
         }
     }
 
     private void startControllersTimer() {
-        if (null != mControlersTimer) {
-            mControlersTimer.cancel();
+        if (null != mControllersTimer) {
+            mControllersTimer.cancel();
         }
         if (mLocation == PlaybackLocation.REMOTE) {
             return;
         }
-        mControlersTimer = new Timer();
-        mControlersTimer.schedule(new HideControllersTask(), 5000);
+        mControllersTimer = new Timer();
+        mControllersTimer.schedule(new HideControllersTask(), 5000);
     }
 
     // should be called from the main thread
-    private void updateControlersVisibility(boolean show) {
+    private void updateControllersVisibility(boolean show) {
         if (show) {
             getSupportActionBar().show();
-            mControlers.setVisibility(View.VISIBLE);
+            mControllers.setVisibility(View.VISIBLE);
         } else {
-            getSupportActionBar().hide();
-            mControlers.setVisibility(View.INVISIBLE);
+            if (!Utils.isOrientationPortrait(this)) {
+                getSupportActionBar().hide();
+            }
+            mControllers.setVisibility(View.INVISIBLE);
         }
     }
 
@@ -390,8 +406,8 @@ public class LocalPlayerActivity extends ActionBarActivity {
                 mSeekbarTimer.cancel();
                 mSeekbarTimer = null;
             }
-            if (null != mControlersTimer) {
-                mControlersTimer.cancel();
+            if (null != mControllersTimer) {
+                mControllersTimer.cancel();
             }
             // since we are playing locally, we need to stop the playback of
             // video (if user is not watching, pause it!)
@@ -400,7 +416,6 @@ public class LocalPlayerActivity extends ActionBarActivity {
             updatePlayButton(PlaybackState.PAUSED);
         }
         mCastManager.removeVideoCastConsumer(mCastConsumer);
-        mMini.removeOnMiniControllerChangedListener(mCastManager);
         mCastManager.decrementUiCounter();
     }
 
@@ -414,9 +429,6 @@ public class LocalPlayerActivity extends ActionBarActivity {
     protected void onDestroy() {
         Log.d(TAG, "onDestroy() is called");
         if (null != mCastManager) {
-            mMini.removeOnMiniControllerChangedListener(mCastManager);
-            mCastManager.removeMiniController(mMini);
-            mCastManager.clearContext(this);
             mCastConsumer = null;
         }
         stopControllersTimer();
@@ -433,9 +445,14 @@ public class LocalPlayerActivity extends ActionBarActivity {
     @Override
     protected void onResume() {
         Log.d(TAG, "onResume() was called");
-        mCastManager = CastApplication.getCastManager(this);
+        mCastManager = VideoCastManager.getInstance();
         mCastManager.addVideoCastConsumer(mCastConsumer);
         mCastManager.incrementUiCounter();
+        if (mCastManager.isConnected()) {
+            updatePlaybackLocation(PlaybackLocation.REMOTE);
+        } else {
+            updatePlaybackLocation(PlaybackLocation.LOCAL);
+        }
         super.onResume();
     }
 
@@ -446,8 +463,8 @@ public class LocalPlayerActivity extends ActionBarActivity {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    updateControlersVisibility(false);
-                    mControlersVisible = false;
+                    updateControllersVisibility(false);
+                    mControllersVisible = false;
                 }
             });
 
@@ -462,9 +479,8 @@ public class LocalPlayerActivity extends ActionBarActivity {
 
                 @Override
                 public void run() {
-                    int currentPos = 0;
                     if (mLocation == PlaybackLocation.LOCAL) {
-                        currentPos = mVideoView.getCurrentPosition();
+                        int currentPos = mVideoView.getCurrentPosition();
                         updateSeekbar(currentPos, mDuration);
                     }
                 }
@@ -479,7 +495,7 @@ public class LocalPlayerActivity extends ActionBarActivity {
             public boolean onError(MediaPlayer mp, int what, int extra) {
                 Log.e(TAG, "OnErrorListener.onError(): VideoView encountered an " +
                         "error, what: " + what + ", extra: " + extra);
-                String msg = "";
+                String msg;
                 if (extra == MediaPlayer.MEDIA_ERROR_TIMED_OUT) {
                     msg = getString(R.string.video_error_media_load_timeout);
                 } else if (what == MediaPlayer.MEDIA_ERROR_SERVER_DIED) {
@@ -501,7 +517,7 @@ public class LocalPlayerActivity extends ActionBarActivity {
             public void onPrepared(MediaPlayer mp) {
                 Log.d(TAG, "onPrepared is reached");
                 mDuration = mp.getDuration();
-                mEndText.setText(com.google.sample.castcompanionlibrary.utils.Utils
+                mEndText.setText(com.google.android.libraries.cast.companionlibrary.utils.Utils
                         .formatMillis(mDuration));
                 mSeekbar.setMax(mDuration);
                 restartTrickplayTimer();
@@ -513,8 +529,9 @@ public class LocalPlayerActivity extends ActionBarActivity {
             @Override
             public void onCompletion(MediaPlayer mp) {
                 stopTrickplayTimer();
+                Log.d(TAG, "setOnCompletionListener()");
                 mPlaybackState = PlaybackState.IDLE;
-                updatePlayButton(PlaybackState.IDLE);
+                updatePlayButton(mPlaybackState);
             }
         });
 
@@ -522,8 +539,8 @@ public class LocalPlayerActivity extends ActionBarActivity {
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (!mControlersVisible) {
-                    updateControlersVisibility(true);
+                if (!mControllersVisible) {
+                    updateControllersVisibility(true);
                 }
                 startControllersTimer();
                 return false;
@@ -552,7 +569,7 @@ public class LocalPlayerActivity extends ActionBarActivity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress,
                     boolean fromUser) {
-                mStartText.setText(com.google.sample.castcompanionlibrary.utils.Utils
+                mStartText.setText(com.google.android.libraries.cast.companionlibrary.utils.Utils
                         .formatMillis(progress));
             }
         });
@@ -561,41 +578,53 @@ public class LocalPlayerActivity extends ActionBarActivity {
 
             @Override
             public void onClick(View v) {
-                togglePlayback();
+                if (mLocation == PlaybackLocation.LOCAL) {
+                    togglePlayback();
+                }
             }
         });
     }
 
     @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        if (mCastManager.onDispatchVolumeKeyEvent(event, CastApplication.VOLUME_INCREMENT)) {
-            return true;
-        }
-        return super.dispatchKeyEvent(event);
+    public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
+        return mCastManager.onDispatchVolumeKeyEvent(event, CastApplication.VOLUME_INCREMENT)
+                || super.dispatchKeyEvent(event);
     }
 
     private void updateSeekbar(int position, int duration) {
         mSeekbar.setProgress(position);
         mSeekbar.setMax(duration);
-        mStartText.setText(com.google.sample.castcompanionlibrary.utils.Utils
+        mStartText.setText(com.google.android.libraries.cast.companionlibrary.utils.Utils
                 .formatMillis(position));
-        mEndText.setText(com.google.sample.castcompanionlibrary.utils.Utils.formatMillis(duration));
+        mEndText.setText(com.google.android.libraries.cast.companionlibrary.utils.Utils
+                .formatMillis(duration));
     }
 
     private void updatePlayButton(PlaybackState state) {
+        Log.d(TAG, "Controls: PlayBackState: " + state);
+        boolean isConnected = mCastManager.isConnected() || mCastManager.isConnecting();
+        mControllers.setVisibility(isConnected ? View.GONE : View.VISIBLE);
+        mPlayCircle.setVisibility(isConnected ? View.GONE : View.VISIBLE);
         switch (state) {
             case PLAYING:
                 mLoading.setVisibility(View.INVISIBLE);
                 mPlayPause.setVisibility(View.VISIBLE);
                 mPlayPause.setImageDrawable(
                         getResources().getDrawable(R.drawable.ic_av_pause_dark));
+                mPlayCircle.setVisibility(isConnected ? View.VISIBLE : View.GONE);
+                break;
+            case IDLE:
+                mPlayCircle.setVisibility(View.VISIBLE);
+                mControllers.setVisibility(View.GONE);
+                mCoverArt.setVisibility(View.VISIBLE);
+                mVideoView.setVisibility(View.INVISIBLE);
                 break;
             case PAUSED:
-            case IDLE:
                 mLoading.setVisibility(View.INVISIBLE);
                 mPlayPause.setVisibility(View.VISIBLE);
                 mPlayPause.setImageDrawable(
                         getResources().getDrawable(R.drawable.ic_av_play_dark));
+                mPlayCircle.setVisibility(isConnected ? View.VISIBLE : View.GONE);
                 break;
             case BUFFERING:
                 mPlayPause.setVisibility(View.INVISIBLE);
@@ -610,6 +639,7 @@ public class LocalPlayerActivity extends ActionBarActivity {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        getSupportActionBar().show();
         if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN);
             getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
@@ -630,35 +660,36 @@ public class LocalPlayerActivity extends ActionBarActivity {
             }
             updateMetadata(true);
             mContainer.setBackgroundColor(getResources().getColor(R.color.white));
-
         }
     }
 
     private void updateMetadata(boolean visible) {
+        Point displaySize;
         if (!visible) {
             mDescriptionView.setVisibility(View.GONE);
             mTitleView.setVisibility(View.GONE);
             mAuthorView.setVisibility(View.GONE);
-            mDisplaySize = Utils.getDisplaySize(this);
+            displaySize = Utils.getDisplaySize(this);
             RelativeLayout.LayoutParams lp = new
-                    RelativeLayout.LayoutParams(mDisplaySize.x,
-                            mDisplaySize.y + getSupportActionBar().getHeight());
+                    RelativeLayout.LayoutParams(displaySize.x,
+                    displaySize.y + getSupportActionBar().getHeight());
             lp.addRule(RelativeLayout.CENTER_IN_PARENT);
             mVideoView.setLayoutParams(lp);
             mVideoView.invalidate();
         } else {
             MediaMetadata mm = mSelectedMedia.getMetadata();
-            mDescriptionView.setText(mm.getString(MediaMetadata.KEY_STUDIO));
+            mDescriptionView.setText(mSelectedMedia.getCustomData().optString(
+                    VideoProvider.KEY_DESCRIPTION));
             mTitleView.setText(mm.getString(MediaMetadata.KEY_TITLE));
             mAuthorView.setText(mm.getString(MediaMetadata.KEY_SUBTITLE));
             mDescriptionView.setVisibility(View.VISIBLE);
             mTitleView.setVisibility(View.VISIBLE);
             mAuthorView.setVisibility(View.VISIBLE);
-            mDisplaySize = Utils.getDisplaySize(this);
+            displaySize = Utils.getDisplaySize(this);
             RelativeLayout.LayoutParams lp = new
-                    RelativeLayout.LayoutParams(mDisplaySize.x,
-                            (int) (mDisplaySize.x * mAspectRatio));
-            lp.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+                    RelativeLayout.LayoutParams(displaySize.x,
+                    (int) (displaySize.x * mAspectRatio));
+            lp.addRule(RelativeLayout.BELOW, R.id.toolbar);
             mVideoView.setLayoutParams(lp);
             mVideoView.invalidate();
         }
@@ -667,30 +698,41 @@ public class LocalPlayerActivity extends ActionBarActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
-        getMenuInflater().inflate(R.menu.main, menu);
+        getMenuInflater().inflate(R.menu.player, menu);
         mCastManager.addMediaRouterButton(menu, R.id.media_route_menu_item);
         return true;
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        menu.findItem(R.id.action_show_queue).setVisible(mCastManager.isConnected());
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        Intent i;
         switch (item.getItemId()) {
             case R.id.action_settings:
-                Intent i = new Intent(LocalPlayerActivity.this, CastPreference.class);
+                i = new Intent(LocalPlayerActivity.this, CastPreference.class);
                 startActivity(i);
                 break;
-
+            case R.id.action_show_queue:
+                i = new Intent(LocalPlayerActivity.this, QueueListViewActivity.class);
+                startActivity(i);
+                break;
+            case android.R.id.home:
+                ActivityCompat.finishAfterTransition(this);
+                break;
         }
         return true;
     }
 
     private void setupActionBar() {
-        getSupportActionBar().setDisplayHomeAsUpEnabled(false);
-        getSupportActionBar().setDisplayUseLogoEnabled(false);
-        getSupportActionBar().setDisplayShowHomeEnabled(false);
-        getSupportActionBar().setDisplayShowTitleEnabled(false);
-        getSupportActionBar().setBackgroundDrawable(
-                getResources().getDrawable(R.drawable.ab_transparent_democastoverlay));
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        toolbar.setTitle(mSelectedMedia.getMetadata().getString(MediaMetadata.KEY_TITLE));
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
     }
 
     private void loadViews() {
@@ -706,8 +748,16 @@ public class LocalPlayerActivity extends ActionBarActivity {
         mPlayPause = (ImageView) findViewById(R.id.imageView2);
         mLoading = (ProgressBar) findViewById(R.id.progressBar1);
         // mVolumeMute = (ImageView) findViewById(R.id.imageView2);
-        mControlers = findViewById(R.id.controllers);
+        mControllers = findViewById(R.id.controllers);
         mContainer = findViewById(R.id.container);
         mCoverArt = (ImageView) findViewById(R.id.coverArtView);
+        ViewCompat.setTransitionName(mCoverArt, getString(R.string.transition_image));
+        mPlayCircle = (ImageButton) findViewById(R.id.play_circle);
+        mPlayCircle.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                togglePlayback();
+            }
+        });
     }
 }
