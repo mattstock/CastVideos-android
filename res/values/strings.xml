@@ -17,10 +17,7 @@
 <resources>
 
     <string name="app_name">LLNWTesting</string>
-    <string name="app_id_styled">7A882C88</string>
-    <string name="app_id_custom_cookies">762B3C14</string>
-    <string name="app_id_custom">179C2AD5</string>
-    <string name="app_id_fightnetwork">C7E217FC</string>
+    <string name="app_id">93F8F6CA</string>
     <string name="action_settings">Settings</string>
     <string name="cast_app_name">LLNWTesting</string>
     <string name="media_route_menu_title">Play on&#8230;</string>

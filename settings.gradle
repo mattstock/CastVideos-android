@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 include':CastCompanionLibrary'
-project(':CastCompanionLibrary').projectDir = new File('../CastCompanionLibrary/')
+project(':CastCompanionLibrary').projectDir = new File('../CastCompanionLibrary-android/')
